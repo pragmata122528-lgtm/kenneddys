@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'mock_success' => env('STRIPE_MOCK_SUCCESS', true),
+    ],
+
 ];

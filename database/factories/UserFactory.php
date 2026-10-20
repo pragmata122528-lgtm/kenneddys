@@ -25,12 +25,34 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'username' => fake()->userName(),
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'role' => 'customer',
+            'is_active' => true,
+            'email_verified_at' => now(),
             'remember_token' => Str::random(10),
         ];
+    }
+
+    /**
+     * Indicate that the user is a vendor.
+     */
+    public function vendor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'vendor',
+        ]);
+    }
+
+    /**
+     * Indicate that the user is an admin.
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'admin',
+        ]);
     }
 
     /**
