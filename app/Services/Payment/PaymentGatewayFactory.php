@@ -6,13 +6,11 @@ use InvalidArgumentException;
 
 class PaymentGatewayFactory
 {
-    /**
-     * Resolve the requested payment gateway strategy.
-     */
-    public function make(string $method = 'stripe'): PaymentGatewayInterface
+    public function make(string $method = 'jazzcash'): PaymentGatewayInterface
     {
         return match (strtolower($method)) {
-            'stripe' => app(PaymentGatewayInterface::class),
+            'jazzcash' => app(PaymentGatewayInterface::class),
+            'easypaisa' => app(EasypaisaPaymentGateway::class),
             'cod' => app(CodPaymentGateway::class),
             default => throw new InvalidArgumentException("Unsupported payment gateway driver: [{$method}]."),
         };

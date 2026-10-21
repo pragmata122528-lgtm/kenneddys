@@ -14,9 +14,6 @@ class RegisterRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function rules(): array
     {
         return [
@@ -26,6 +23,18 @@ class RegisterRequest extends FormRequest
             'role' => ['sometimes', 'string', new Enum(UserRole::class)],
             'shop_name' => ['nullable', 'string', 'max:150'],
             'shop_description' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'username.required' => 'Please provide a username.',
+            'email.required' => 'Please provide a valid email address.',
+            'email.email' => 'Please enter a valid email format.',
+            'email.unique' => 'This email address is already registered.',
+            'password.required' => 'Password is required.',
+            'role.enum' => 'Role must be one of: customer, vendor, admin.',
         ];
     }
 }

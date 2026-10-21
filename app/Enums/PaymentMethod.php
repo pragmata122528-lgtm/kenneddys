@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum PaymentMethod: string
 {
-    case Stripe = 'stripe';
+    case JazzCash = 'jazzcash';
+    case Easypaisa = 'easypaisa';
     case Cod = 'cod';
 }

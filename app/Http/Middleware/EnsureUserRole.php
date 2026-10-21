@@ -9,11 +9,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserRole
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  Closure(Request): (Response)  $next
-     */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = auth('api')->user() ?? $request->user();

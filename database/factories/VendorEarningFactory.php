@@ -4,22 +4,13 @@ namespace Database\Factories;
 
 use App\Models\Order;
 use App\Models\Vendor;
-use App\Models\VendorEarning;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends Factory<VendorEarning>
- */
 class VendorEarningFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
-        $amount = fake()->randomFloat(2, 50, 500);
+        $amount = fake()->randomFloat(2, 5000, 100000);
         $commission = round($amount * 0.10, 2);
         $earning = round($amount - $commission, 2);
 

@@ -2,18 +2,6 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Resend, Postmark, AWS, and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
-
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
@@ -35,10 +23,17 @@ return [
         ],
     ],
 
-    'stripe' => [
-        'key' => env('STRIPE_KEY'),
-        'secret' => env('STRIPE_SECRET'),
-        'mock_success' => env('STRIPE_MOCK_SUCCESS', true),
+    'jazzcash' => [
+        'merchant_id' => env('JAZZCASH_MERCHANT_ID'),
+        'password' => env('JAZZCASH_PASSWORD'),
+        'integrity_salt' => env('JAZZCASH_INTEGRITY_SALT'),
+        'mock_success' => env('JAZZCASH_MOCK_SUCCESS', true),
+    ],
+
+    'easypaisa' => [
+        'store_id' => env('EASYPAISA_STORE_ID'),
+        'hash_key' => env('EASYPAISA_HASH_KEY'),
+        'mock_success' => env('EASYPAISA_MOCK_SUCCESS', true),
     ],
 
 ];

@@ -2,21 +2,14 @@
 
 namespace App\Models;
 
-use Database\Factories\VendorEarningFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VendorEarning extends Model
 {
-    /** @use HasFactory<VendorEarningFactory> */
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'vendor_id',
         'order_id',
@@ -25,11 +18,6 @@ class VendorEarning extends Model
         'vendor_earning',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -39,17 +27,11 @@ class VendorEarning extends Model
         ];
     }
 
-    /**
-     * Get the vendor who earned this payout.
-     */
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class);
     }
 
-    /**
-     * Get the order that generated this earning.
-     */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);

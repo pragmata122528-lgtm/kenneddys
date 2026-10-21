@@ -15,9 +15,6 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AdminController extends Controller
 {
-    /**
-     * List all vendors with filter for approval status and eager-loaded user.
-     */
     public function vendors(Request $request): AnonymousResourceCollection
     {
         $vendors = Vendor::query()
@@ -32,9 +29,6 @@ class AdminController extends Controller
         return VendorResource::collection($vendors);
     }
 
-    /**
-     * Approve a vendor profile.
-     */
     public function approveVendor(Vendor $vendor): JsonResponse
     {
         $vendor->update(['is_approved' => true]);
@@ -45,9 +39,6 @@ class AdminController extends Controller
         ]);
     }
 
-    /**
-     * Reject or suspend a vendor profile.
-     */
     public function rejectVendor(Vendor $vendor): JsonResponse
     {
         $vendor->update(['is_approved' => false]);
@@ -58,9 +49,6 @@ class AdminController extends Controller
         ]);
     }
 
-    /**
-     * View full platform commission and vendor earnings ledger with eager loading.
-     */
     public function earningsLedger(Request $request): AnonymousResourceCollection
     {
         $ledger = VendorEarning::query()
@@ -71,9 +59,6 @@ class AdminController extends Controller
         return VendorEarningResource::collection($ledger);
     }
 
-    /**
-     * Overview platform analytics and financial totals.
-     */
     public function platformStats(): JsonResponse
     {
         $totalCommission = (float) VendorEarning::sum('commission_fee');

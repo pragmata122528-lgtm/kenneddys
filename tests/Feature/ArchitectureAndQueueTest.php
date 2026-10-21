@@ -9,13 +9,13 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\Payment\CodPaymentGateway;
+use App\Services\Payment\EasypaisaPaymentGateway;
+use App\Services\Payment\JazzCashPaymentGateway;
 use App\Services\Payment\PaymentGatewayFactory;
 use App\Services\Payment\PaymentGatewayInterface;
-use App\Services\Payment\StripePaymentGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
@@ -27,9 +27,13 @@ class ArchitectureAndQueueTest extends TestCase
     {
         $factory = new PaymentGatewayFactory;
 
-        $stripe = $factory->make('stripe');
-        $this->assertInstanceOf(PaymentGatewayInterface::class, $stripe);
-        $this->assertInstanceOf(StripePaymentGateway::class, $stripe);
+        $jazzcash = $factory->make('jazzcash');
+        $this->assertInstanceOf(PaymentGatewayInterface::class, $jazzcash);
+        $this->assertInstanceOf(JazzCashPaymentGateway::class, $jazzcash);
+
+        $easypaisa = $factory->make('easypaisa');
+        $this->assertInstanceOf(PaymentGatewayInterface::class, $easypaisa);
+        $this->assertInstanceOf(EasypaisaPaymentGateway::class, $easypaisa);
 
         $cod = $factory->make('cod');
         $this->assertInstanceOf(PaymentGatewayInterface::class, $cod);
@@ -51,14 +55,12 @@ class ArchitectureAndQueueTest extends TestCase
         $vendor1->update(['is_approved' => true]);
 
         $vendorUser2 = User::factory()->vendor()->create();
-        $vendor2 = $vendorUser2->vendor; // is_approved is false
+        $vendor2 = $vendorUser2->vendor;
 
-        // Scope tests on Vendor
         $this->assertTrue(Vendor::approved()->where('id', $vendor1->id)->exists());
         $this->assertFalse(Vendor::approved()->where('id', $vendor2->id)->exists());
         $this->assertTrue(Vendor::pending()->where('id', $vendor2->id)->exists());
 
-        // Scope tests on Product
         $activeProduct = Product::factory()->create([
             'vendor_id' => $vendor1->id,
             'is_active' => true,
@@ -95,7 +97,6 @@ class ArchitectureAndQueueTest extends TestCase
 
         $token = auth('api')->login($customer);
 
-        // ProductController index eager loads 'vendor', so accessing vendor does not throw
         $response = $this->withHeader('Authorization', "Bearer {$token}")
             ->getJson(route('products.index'));
 
@@ -114,44 +115,40 @@ class ArchitectureAndQueueTest extends TestCase
 
         $product = Product::factory()->create([
             'vendor_id' => $vendor->id,
-            'price' => 300.00,
+            'price' => 3000.00,
             'stock_quantity' => 20,
         ]);
 
         $order = Order::factory()->create([
             'user_id' => $customer->id,
-            'total_amount' => 300.00,
+            'total_amount' => 3000.00,
         ]);
 
         $order->items()->create([
             'product_id' => $product->id,
             'quantity' => 1,
-            'price' => 300.00,
+            'price' => 3000.00,
         ]);
 
-        // Push event listener directly to queue connection
         $listener = new ProcessOrderFulfillment;
         dispatch(function () use ($listener, $order): void {
             $listener->handle(new OrderPlaced($order));
         })->onConnection('redis');
 
-        // Verify that Redis queue contains the queued job
         $queueLength = (int) Redis::connection()->llen('queues:default');
         $this->assertGreaterThan(0, $queueLength);
 
-        // Run queue worker for 1 job
         Artisan::call('queue:work', [
             'connection' => 'redis',
             '--once' => true,
         ]);
 
-        // Verify the background job wrote the 10% commission ledger entry
         $this->assertDatabaseHas('vendor_earnings', [
             'vendor_id' => $vendor->id,
             'order_id' => $order->id,
-            'order_amount' => 300.00,
-            'commission_fee' => 30.00, // 10% of 300
-            'vendor_earning' => 270.00, // 90% of 300
+            'order_amount' => 3000.00,
+            'commission_fee' => 300.00,
+            'vendor_earning' => 2700.00,
         ]);
     }
 }

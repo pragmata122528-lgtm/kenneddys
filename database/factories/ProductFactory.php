@@ -2,20 +2,11 @@
 
 namespace Database\Factories;
 
-use App\Models\Product;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends Factory<Product>
- */
 class ProductFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
@@ -23,7 +14,7 @@ class ProductFactory extends Factory
             'name' => fake()->words(3, true),
             'description' => fake()->paragraph(),
             'image' => null,
-            'price' => fake()->randomFloat(2, 10, 500),
+            'price' => fake()->randomFloat(2, 500, 50000), // PKR
             'stock_quantity' => fake()->numberBetween(10, 100),
             'total_sold' => 0,
             'is_active' => true,
@@ -33,9 +24,6 @@ class ProductFactory extends Factory
         ];
     }
 
-    /**
-     * Indicate that the product is out of stock.
-     */
     public function outOfStock(): static
     {
         return $this->state(fn (array $attributes) => [
@@ -43,9 +31,6 @@ class ProductFactory extends Factory
         ]);
     }
 
-    /**
-     * Indicate that the product is inactive.
-     */
     public function inactive(): static
     {
         return $this->state(fn (array $attributes) => [

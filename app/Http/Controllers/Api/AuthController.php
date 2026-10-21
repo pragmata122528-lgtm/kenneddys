@@ -13,9 +13,6 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    /**
-     * Register a new customer or vendor user.
-     */
     public function register(RegisterRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -28,14 +25,6 @@ class AuthController extends Controller
             'is_active' => true,
         ]);
 
-        // If vendor registered with custom shop details, update the auto-created profile
-        if ($user->role === UserRole::Vendor->value && (! empty($validated['shop_name']) || ! empty($validated['shop_description']))) {
-            $user->vendor()->update(array_filter([
-                'shop_name' => $validated['shop_name'] ?? null,
-                'shop_description' => $validated['shop_description'] ?? null,
-            ]));
-        }
-
         $token = auth('api')->login($user);
 
         return response()->json([
@@ -47,9 +36,6 @@ class AuthController extends Controller
         ], 201);
     }
 
-    /**
-     * Authenticate user and issue JWT token.
-     */
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
@@ -61,7 +47,6 @@ class AuthController extends Controller
             ], 401);
         }
 
-        /** @var User $user */
         $user = auth('api')->user();
 
         if (! $user->is_active) {
@@ -82,12 +67,8 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Get authenticated user profile.
-     */
     public function me(): JsonResponse
     {
-        /** @var User $user */
         $user = auth('api')->user();
 
         return response()->json([
@@ -95,9 +76,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Log out current user and invalidate JWT token.
-     */
     public function logout(): JsonResponse
     {
         auth('api')->logout();
@@ -107,9 +85,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Refresh current JWT token.
-     */
     public function refresh(): JsonResponse
     {
         $token = auth('api')->refresh();

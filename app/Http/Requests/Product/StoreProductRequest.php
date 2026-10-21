@@ -11,9 +11,6 @@ class StoreProductRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function rules(): array
     {
         return [
@@ -26,6 +23,18 @@ class StoreProductRequest extends FormRequest
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'flat_discount' => ['nullable', 'numeric', 'min:0'],
             'percentage_discount' => ['nullable', 'integer', 'min:0', 'max:100'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Product name is required.',
+            'price.required' => 'Product price is required.',
+            'price.min' => 'Product price must be greater than zero.',
+            'stock_quantity.required' => 'Stock quantity is required.',
+            'stock_quantity.min' => 'Stock quantity cannot be negative.',
+            'percentage_discount.max' => 'Discount percentage cannot exceed 100%.',
         ];
     }
 }

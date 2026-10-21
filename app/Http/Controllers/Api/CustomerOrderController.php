@@ -5,19 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CustomerOrderController extends Controller
 {
-    /**
-     * Display a paginated listing of the authenticated customer's orders.
-     */
     public function index(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
         $user = auth('api')->user();
 
         $orders = $user->orders()
@@ -28,12 +23,8 @@ class CustomerOrderController extends Controller
         return OrderResource::collection($orders);
     }
 
-    /**
-     * Display a specific order belonging to the customer.
-     */
     public function show(Order $order): JsonResponse
     {
-        /** @var User $user */
         $user = auth('api')->user();
 
         if ($order->user_id !== $user->id && $user->role !== 'admin') {

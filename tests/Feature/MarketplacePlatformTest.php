@@ -10,7 +10,6 @@ use App\Listeners\ProcessOrderFulfillment;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
-use App\Models\Vendor;
 use App\Services\Payment\PaymentGatewayInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -66,7 +65,7 @@ class MarketplacePlatformTest extends TestCase
         $response = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson(route('vendor.products.store'), [
                 'name' => 'Pro Headset',
-                'price' => 79.99,
+                'price' => 7900.00,
                 'stock_quantity' => 20,
             ]);
 
@@ -88,7 +87,7 @@ class MarketplacePlatformTest extends TestCase
         $response = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson(route('vendor.products.store'), [
                 'name' => 'Wireless Bluetooth Earbuds Pro',
-                'price' => 89.99,
+                'price' => 8500.00,
                 'stock_quantity' => 45,
             ]);
 
@@ -114,7 +113,7 @@ class MarketplacePlatformTest extends TestCase
 
         $product = Product::factory()->create([
             'vendor_id' => $vendor->id,
-            'price' => 50.00,
+            'price' => 5000.00,
             'stock_quantity' => 10,
         ]);
 
@@ -125,29 +124,28 @@ class MarketplacePlatformTest extends TestCase
                 'items' => [
                     ['product_id' => $product->id, 'quantity' => 3],
                 ],
-                'payment_method' => 'stripe',
-                'shipping_amount' => 10.00,
+                'payment_method' => 'jazzcash',
+                'shipping_amount' => 250.00,
             ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('order.total_amount', fn ($amount) => (float) $amount === 160.0)
+            ->assertJsonPath('order.total_amount', fn ($amount) => (float) $amount === 15250.0)
             ->assertJsonPath('order.payment_status', PaymentStatus::Paid->value)
             ->assertJsonPath('order.status', OrderStatus::Processing->value);
 
-        // Verify stock deducted
         $this->assertEquals(7, $product->fresh()->stock_quantity);
         $this->assertEquals(3, $product->fresh()->total_sold);
 
-        // Verify database records
         $this->assertDatabaseHas('orders', [
             'user_id' => $buyer->id,
-            'total_amount' => 160.00,
+            'total_amount' => 15250.00,
+            'payment_method' => 'jazzcash',
         ]);
 
         $this->assertDatabaseHas('order_items', [
             'product_id' => $product->id,
             'quantity' => 3,
-            'price' => 50.00,
+            'price' => 5000.00,
         ]);
 
         Event::assertDispatched(OrderPlaced::class);
@@ -178,18 +176,16 @@ class MarketplacePlatformTest extends TestCase
             ->postJson(route('checkout'), [
                 'items' => [
                     ['product_id' => $product1->id, 'quantity' => 2],
-                    ['product_id' => $product2->id, 'quantity' => 5], // Exceeds stock (2 available)
+                    ['product_id' => $product2->id, 'quantity' => 5],
                 ],
             ]);
 
         $response->assertStatus(422)
             ->assertJsonPath('code', 'INSUFFICIENT_STOCK');
 
-        // Rollback verification: inventory must remain untouched
         $this->assertEquals(10, $product1->fresh()->stock_quantity);
         $this->assertEquals(2, $product2->fresh()->stock_quantity);
 
-        // No orders or order items should have been created
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('order_items', 0);
     }
@@ -199,7 +195,7 @@ class MarketplacePlatformTest extends TestCase
         $this->mock(PaymentGatewayInterface::class, function ($mock): void {
             $mock->shouldReceive('charge')
                 ->once()
-                ->andReturn(false); // Simulate card decline
+                ->andReturn(false);
         });
 
         $buyer = User::factory()->create();
@@ -209,7 +205,7 @@ class MarketplacePlatformTest extends TestCase
 
         $product = Product::factory()->create([
             'vendor_id' => $vendor->id,
-            'price' => 100.00,
+            'price' => 2500.00,
             'stock_quantity' => 5,
         ]);
 
@@ -220,13 +216,12 @@ class MarketplacePlatformTest extends TestCase
                 'items' => [
                     ['product_id' => $product->id, 'quantity' => 1],
                 ],
-                'payment_method' => 'stripe',
+                'payment_method' => 'jazzcash',
             ]);
 
         $response->assertStatus(402)
             ->assertJsonPath('code', 'PAYMENT_FAILED');
 
-        // Full rollback verification
         $this->assertEquals(5, $product->fresh()->stock_quantity);
         $this->assertDatabaseCount('orders', 0);
     }
@@ -240,7 +235,7 @@ class MarketplacePlatformTest extends TestCase
 
         $product = Product::factory()->create([
             'vendor_id' => $vendor->id,
-            'price' => 200.00,
+            'price' => 20000.00,
             'stock_quantity' => 10,
         ]);
 
@@ -251,23 +246,22 @@ class MarketplacePlatformTest extends TestCase
                 'items' => [
                     ['product_id' => $product->id, 'quantity' => 1],
                 ],
+                'payment_method' => 'easypaisa',
             ]);
 
         $response->assertStatus(201);
         $orderId = $response->json('order.id');
 
-        // Execute listener directly to test background job logic
         $order = Order::with(['user', 'items.product.vendor'])->find($orderId);
         $listener = new ProcessOrderFulfillment;
         $listener->handle(new OrderPlaced($order));
 
-        // 10% of 200 is 20.00 commission, 180.00 vendor earning
         $this->assertDatabaseHas('vendor_earnings', [
             'vendor_id' => $vendor->id,
             'order_id' => $orderId,
-            'order_amount' => 200.00,
-            'commission_fee' => 20.00,
-            'vendor_earning' => 180.00,
+            'order_amount' => 20000.00,
+            'commission_fee' => 2000.00,
+            'vendor_earning' => 18000.00,
         ]);
     }
 

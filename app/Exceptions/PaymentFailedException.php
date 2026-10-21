@@ -13,9 +13,6 @@ class PaymentFailedException extends Exception
         parent::__construct($message, 402);
     }
 
-    /**
-     * Render the exception into an HTTP response.
-     */
     public function render(Request $request): JsonResponse
     {
         return response()->json([

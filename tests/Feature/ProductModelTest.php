@@ -22,7 +22,7 @@ class ProductModelTest extends TestCase
         $product = Product::create([
             'vendor_id' => $vendor->id,
             'name' => 'Awesome Gaming Laptop 2026',
-            'price' => 1499.99,
+            'price' => 149999.00,
             'stock_quantity' => 15,
         ]);
 
@@ -36,14 +36,14 @@ class ProductModelTest extends TestCase
         $product1 = Product::create([
             'vendor_id' => $vendor->id,
             'name' => 'Wireless Mechanical Keyboard',
-            'price' => 99.00,
+            'price' => 9900.00,
             'stock_quantity' => 20,
         ]);
 
         $product2 = Product::create([
             'vendor_id' => $vendor->id,
             'name' => 'Wireless Mechanical Keyboard',
-            'price' => 109.00,
+            'price' => 10900.00,
             'stock_quantity' => 10,
         ]);
 
@@ -59,7 +59,7 @@ class ProductModelTest extends TestCase
             'vendor_id' => $vendor->id,
             'name' => 'Custom Mug',
             'slug' => 'Custom Mug Special Edition #1',
-            'price' => 19.99,
+            'price' => 1900.00,
             'stock_quantity' => 50,
         ]);
 
@@ -75,37 +75,36 @@ class ProductModelTest extends TestCase
 
         $product = Product::factory()->create([
             'vendor_id' => $vendor->id,
-            'price' => 100.00,
+            'price' => 1000.00,
             'stock_quantity' => 25,
         ]);
 
         $order = Order::factory()->create([
             'user_id' => $customer->id,
-            'total_amount' => 200.00,
+            'total_amount' => 2000.00,
         ]);
 
         $orderItem = OrderItem::factory()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,
-            'price' => 100.00,
+            'price' => 1000.00,
         ]);
 
         $earning = VendorEarning::factory()->create([
             'vendor_id' => $vendor->id,
             'order_id' => $order->id,
-            'order_amount' => 200.00,
-            'commission_fee' => 20.00,
-            'vendor_earning' => 180.00,
+            'order_amount' => 2000.00,
+            'commission_fee' => 200.00,
+            'vendor_earning' => 1800.00,
         ]);
 
-        // Assert relationships
         $this->assertEquals($vendor->id, $product->vendor->id);
         $this->assertEquals($customer->id, $order->user->id);
         $this->assertCount(1, $order->items);
         $this->assertEquals($product->id, $order->items->first()->product->id);
-        $this->assertEquals(200.00, $orderItem->subtotal);
+        $this->assertEquals(2000.00, $orderItem->subtotal);
         $this->assertCount(1, $vendor->earnings);
-        $this->assertEquals(180.00, $vendor->earnings->first()->vendor_earning);
+        $this->assertEquals(1800.00, $vendor->earnings->first()->vendor_earning);
     }
 }

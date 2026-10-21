@@ -7,18 +7,15 @@ use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a paginated listing of active products with eager loaded vendors.
-     */
     public function index(Request $request): AnonymousResourceCollection
     {
+
         $products = Product::query()
             ->active()
             ->with('vendor')
@@ -34,20 +31,13 @@ class ProductController extends Controller
         return ProductResource::collection($products);
     }
 
-    /**
-     * Display the specified product.
-     */
     public function show(Product $product): ProductResource
     {
         return new ProductResource($product->load('vendor'));
     }
 
-    /**
-     * Store a newly created product (authorized for approved vendors).
-     */
     public function store(StoreProductRequest $request): JsonResponse
     {
-        /** @var User $user */
         $user = auth('api')->user();
         $vendor = $user->vendor;
 
@@ -59,12 +49,8 @@ class ProductController extends Controller
         ], 201);
     }
 
-    /**
-     * Update the specified product in storage.
-     */
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        /** @var User $user */
         $user = auth('api')->user();
 
         if ($product->vendor_id !== $user->vendor?->id) {
@@ -82,12 +68,8 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Remove the specified product from storage.
-     */
     public function destroy(Product $product): JsonResponse
     {
-        /** @var User $user */
         $user = auth('api')->user();
 
         if ($product->vendor_id !== $user->vendor?->id) {

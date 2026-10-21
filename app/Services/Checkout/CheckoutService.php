@@ -16,25 +16,18 @@ use Illuminate\Support\Facades\DB;
 
 class CheckoutService
 {
-    /**
-     * Inject payment gateway factory via constructor (Strategy + Factory patterns).
-     */
     public function __construct(protected PaymentGatewayFactory $paymentGatewayFactory) {}
 
-    /**
-     * Execute sequential checkout inside a strict database transaction.
-     *
-     * @param  array<int, array{product_id: int, quantity: int}>  $itemsData
-     *
-     * @throws InsufficientStockException
-     * @throws PaymentFailedException
-     */
-    public function execute(User $user, array $itemsData, string $paymentMethod = 'stripe', float $shippingAmount = 0.00): Order
-    {
-        return DB::transaction(function () use ($user, $itemsData, $paymentMethod, $shippingAmount): Order {
+    public function execute(
+        User $user,
+        array $itemsData,
+        string $paymentMethod = 'jazzcash',
+        float $shippingAmount = 0.00,
+        bool $simulateFailure = false
+    ): Order {
+        return DB::transaction(function () use ($user, $itemsData, $paymentMethod, $shippingAmount, $simulateFailure): Order {
             $productIds = array_column($itemsData, 'product_id');
 
-            // Lock products for update to prevent concurrent race conditions
             $products = Product::whereIn('id', $productIds)
                 ->lockForUpdate()
                 ->get()
@@ -43,12 +36,9 @@ class CheckoutService
             $orderItems = [];
             $subtotal = 0.00;
 
-            // Step 1: Verify available inventory sequentially
             foreach ($itemsData as $item) {
                 $productId = $item['product_id'];
                 $requestedQty = (int) $item['quantity'];
-
-                /** @var Product|null $product */
                 $product = $products->get($productId);
 
                 if (! $product || ! $product->is_active) {
@@ -82,9 +72,7 @@ class CheckoutService
                 ];
             }
 
-            // Step 2: Deduct purchased quantities directly from product stock
             foreach ($orderItems as $item) {
-                /** @var Product $product */
                 $product = $item['product'];
                 $product->decrement('stock_quantity', $item['quantity']);
                 $product->increment('total_sold', $item['quantity']);
@@ -92,7 +80,6 @@ class CheckoutService
 
             $totalAmount = round($subtotal + $shippingAmount, 2);
 
-            // Step 3: Generate records in orders and order_items tables
             $order = Order::create([
                 'user_id' => $user->id,
                 'total_amount' => $totalAmount,
@@ -110,13 +97,11 @@ class CheckoutService
                 ]);
             }
 
-            // Step 4: Process payment through decoupled strategy resolved by factory
             $gateway = $this->paymentGatewayFactory->make($paymentMethod);
-            $amountInCents = (int) round($totalAmount * 100);
-            $charged = $gateway->charge($amountInCents, 'usd');
+            $charged = ! $simulateFailure && $gateway->charge((int) round($totalAmount), 'PKR');
 
             if (! $charged) {
-                throw new PaymentFailedException('Payment authorization was declined. Transaction rolled back.');
+                throw new PaymentFailedException('Payment authorization was declined. Transaction and inventory hold have been rolled back.');
             }
 
             $order->update([
@@ -125,7 +110,6 @@ class CheckoutService
                     : PaymentStatus::Paid->value,
             ]);
 
-            // Step 5: Dispatch event for background queued processing
             OrderPlaced::dispatch($order);
 
             return $order->load(['items.product.vendor', 'user']);

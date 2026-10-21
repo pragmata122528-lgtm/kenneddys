@@ -7,16 +7,8 @@ use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends Factory<Vendor>
- */
 class VendorFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
@@ -27,9 +19,6 @@ class VendorFactory extends Factory
         ];
     }
 
-    /**
-     * Configure the model factory.
-     */
     public function configure(): static
     {
         return $this->afterCreating(function (Vendor $vendor): void {
@@ -39,9 +28,6 @@ class VendorFactory extends Factory
         });
     }
 
-    /**
-     * Indicate that the vendor is approved.
-     */
     public function approved(): static
     {
         return $this->state(fn (array $attributes) => [

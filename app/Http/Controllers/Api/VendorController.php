@@ -9,19 +9,14 @@ use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendorEarningResource;
 use App\Http\Resources\VendorResource;
 use App\Models\OrderItem;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class VendorController extends Controller
 {
-    /**
-     * Get the authenticated vendor's profile and shop summary.
-     */
     public function profile(): JsonResponse
     {
-        /** @var User $user */
         $user = auth('api')->user();
         $vendor = $user->vendor?->loadCount('products');
 
@@ -40,12 +35,8 @@ class VendorController extends Controller
         ]);
     }
 
-    /**
-     * Update the vendor's shop profile.
-     */
     public function updateProfile(UpdateVendorProfileRequest $request): JsonResponse
     {
-        /** @var User $user */
         $user = auth('api')->user();
         $vendor = $user->vendor;
 
@@ -64,12 +55,8 @@ class VendorController extends Controller
         ]);
     }
 
-    /**
-     * List products belonging to the authenticated vendor.
-     */
     public function products(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
         $user = auth('api')->user();
         $vendor = $user->vendor;
 
@@ -80,16 +67,11 @@ class VendorController extends Controller
         return ProductResource::collection($products);
     }
 
-    /**
-     * View orders containing this vendor's products, eager-loading relations to prevent N+1 queries.
-     */
     public function orders(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
         $user = auth('api')->user();
         $vendor = $user->vendor;
 
-        // Eager load order and product to avoid N+1 queries
         $orderItems = OrderItem::query()
             ->whereHas('product', fn ($query) => $query->where('vendor_id', $vendor->id))
             ->with(['order.user', 'product'])
@@ -99,12 +81,8 @@ class VendorController extends Controller
         return OrderItemResource::collection($orderItems);
     }
 
-    /**
-     * View vendor's commission ledger and earnings history.
-     */
     public function earnings(Request $request): AnonymousResourceCollection
     {
-        /** @var User $user */
         $user = auth('api')->user();
         $vendor = $user->vendor;
 

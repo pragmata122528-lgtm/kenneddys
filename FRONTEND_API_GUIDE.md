@@ -1,80 +1,110 @@
-# Multi-Vendor Marketplace — Frontend API Integration Guide
+# Multi-Vendor Marketplace — Frontend API Integration Guide (Lovable & Web/Mobile)
 
-Welcome to the **Multi-Vendor Marketplace API**. This guide covers everything frontend developers (React, Vue, Next.js, Mobile) need to know to integrate with the backend API seamlessly.
+Welcome to the **Multi-Vendor Marketplace API**. This guide provides complete end-to-end documentation for frontend developers (Lovable, React, Vite, Next.js, Flutter/React Native).
 
 ---
 
-## 1. General API Conventions
+## 1. Quick Start: Frontend `.env` Configuration
 
-### Base URL
-```text
-http://localhost:8000/api
+Create or update your `.env` file in your frontend application (e.g. in Lovable, Vite, or Next.js):
+
+```env
+# ==============================================================
+# FRONTEND ENVIRONMENT CONFIGURATION (LOVABLE / REACT / VITE)
+# ==============================================================
+
+# 1. LIVE NGROK TUNNEL (For remote testing / Lovable sandbox):
+VITE_API_BASE_URL=https://usage-putt-sage.ngrok-free.dev/api
+
+# 2. LOCAL DEV SERVER (For local testing on same machine):
+# VITE_API_BASE_URL=http://localhost:8000/api
+
+# Marketplace Currency Configuration:
+VITE_DEFAULT_CURRENCY=PKR
+VITE_CURRENCY_SYMBOL=Rs.
+
+# Supported Payment Gateways:
+VITE_SUPPORTED_PAYMENT_METHODS=jazzcash,easypaisa,cod
 ```
-*(Or your configured domain/port)*
 
-### Standard Request Headers
-Always send these headers with every request:
+> **IMPORTANT FOR NGROK FREE TIER:**  
+> When testing via the Ngrok URL, always send this header to bypass Ngrok's browser security warning page:  
+> `ngrok-skip-browser-warning: true`
+
+---
+
+## 2. Standard Headers & Error Handling
+
+### Request Headers
+Send these headers with every request:
 ```http
 Accept: application/json
 Content-Type: application/json
+ngrok-skip-browser-warning: true
 ```
 
-### Authenticated Request Headers
-For protected endpoints, include the JWT bearer token received during login or registration:
+### Protected Request Headers
+For endpoints requiring authentication, attach the Bearer token:
 ```http
 Authorization: Bearer <your_jwt_access_token>
 ```
 
----
-
-## 2. Standard Error Response Format
-
-All validation and domain errors follow a consistent JSON structure:
+### Standardized User-Friendly Error Format
+No raw database errors or PHP stack traces are ever exposed to the client. Every error returns:
 
 ```json
 {
-  "message": "Human-readable explanation of what went wrong.",
-  "code": "MACHINE_READABLE_ERROR_CODE",
-  "details": {}
+  "success": false,
+  "message": "Validation failed. Please check the submitted fields.",
+  "code": "VALIDATION_ERROR",
+  "errors": {
+    "username": ["Please provide a username."],
+    "email": ["Please provide a valid email address."],
+    "password": ["Password is required."]
+  }
 }
 ```
 
-### Common Error Codes
+### Error Codes Reference
 
-| HTTP Status | Error `code` | Meaning / How Frontend Should Handle |
-|---|---|---|
-| `401 Unauthorized` | `UNAUTHORIZED` | Token is missing or expired. Redirect user to `/login`. |
-| `403 Forbidden` | `VENDOR_NOT_APPROVED` | Vendor tried to create/edit products before admin approval. Show banner: *"Your shop is pending approval"*. |
-| `403 Forbidden` | `NOT_VENDOR` | Customer tried to access vendor-only routes. |
-| `403 Forbidden` | `ROLE_FORBIDDEN` | User does not have the required role (e.g. non-admin accessing admin portal). |
-| `422 Unprocessable` | `INSUFFICIENT_STOCK` | Stock check failed during checkout. Details specify which product and available stock. |
-| `402 Payment Req.` | `PAYMENT_FAILED` | Payment gateway declined the transaction. Prompt user for another card. |
-
----
-
-## 3. User Roles & Permissions
-
-The system supports 3 roles:
-- **`customer`**: Can browse products, checkout, and view their order history.
-- **`vendor`**: Can manage shop profile, view their earnings/orders, and manage products *(once approved)*.
-- **`admin`**: Can approve/reject vendors and view platform commission analytics.
+| HTTP Status | Error `code` | Description | Recommended Frontend Handling |
+|---|---|---|---|
+| `401 Unauthorized` | `UNAUTHENTICATED` | Bearer token is missing, expired, or invalid. | Clear stored token and redirect user to `/login`. |
+| `403 Forbidden` | `VENDOR_NOT_APPROVED` | Vendor shop has not been approved by Admin yet. | Show banner: *"Your shop profile is awaiting admin approval"*. |
+| `403 Forbidden` | `FORBIDDEN_ROLE` | User does not have the required role for this portal. | Show *"Access Denied — Insufficient Permissions"*. |
+| `403 Forbidden` | `NOT_PRODUCT_OWNER` | Vendor tried to update or delete another vendor's item. | Show alert: *"You do not own this product"*. |
+| `404 Not Found` | `ENDPOINT_NOT_FOUND` | The requested route does not exist. | Show 404 page. |
+| `404 Not Found` | `RESOURCE_NOT_FOUND` | Product slug or Order ID was not found. | Show *"Item not found"*. |
+| `422 Unprocessable` | `VALIDATION_ERROR` | Required fields were empty or formatted incorrectly. | Highlight invalid input fields using the `errors` dictionary. |
+| `422 Unprocessable` | `INSUFFICIENT_STOCK` | Stock ran out during atomic checkout. | Show toast: *"Selected quantity exceeds available stock"*. |
+| `402 Payment Req.` | `PAYMENT_FAILED` | Gateway (JazzCash / Easypaisa) declined transaction. | Prompt customer to select another payment method. |
 
 ---
 
-## 4. Endpoints Specification
+## 3. Roles & System Workflows
 
-### A. Authentication (`/auth`)
+The platform has 3 distinct roles:
+1. **`customer`**: Browses public products, places checkout orders in PKR via JazzCash, Easypaisa, or COD, and views their order history.
+2. **`vendor`**: Signs up with shop name. Starts in `is_approved: false`. Once approved by admin, can manage catalog, view sales, and track 90% payout earnings.
+3. **`admin`**: Platform owner who reviews vendor applications, approves/rejects shops, and monitors the 10% commission ledger and analytics.
+
+---
+
+## 4. Complete Endpoints Reference (With Full URLs)
+
+### A. Authentication Routes
 
 #### 1. Register User / Vendor
 - **Method**: `POST`
-- **URL**: `/auth/register`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/auth/register`
+- **Local URL**: `http://localhost:8000/api/auth/register`
 - **Auth**: Public
 
 **Request Body (Customer):**
 ```json
 {
-  "username": "alex99",
-  "email": "alex@example.com",
+  "username": "usman_khan",
+  "email": "usman@gmail.com",
   "password": "Password123!",
   "role": "customer"
 }
@@ -83,36 +113,34 @@ The system supports 3 roles:
 **Request Body (Vendor):**
 ```json
 {
-  "username": "gadgethub",
-  "email": "vendor@gadgethub.com",
+  "username": "lahoretraders",
+  "email": "vendor@lahoretraders.pk",
   "password": "Password123!",
   "role": "vendor",
-  "shop_name": "Gadget Hub Official",
-  "shop_description": "Top quality electronics and accessories."
+  "shop_name": "Lahore Traders Mall",
+  "shop_description": "Premier clothing and electronics vendor."
 }
 ```
-> **Note for Frontend:** When `role: "vendor"` is sent, the backend automatically provisions their vendor shop profile in an `is_approved: false` state.
 
-**Response (201 Created):**
+**Response (`201 Created`):**
 ```json
 {
   "message": "User registered successfully.",
   "user": {
     "id": 1,
-    "username": "gadgethub",
-    "email": "vendor@gadgethub.com",
+    "username": "lahoretraders",
+    "email": "vendor@lahoretraders.pk",
     "role": "vendor",
-    "is_active": true,
     "vendor": {
       "id": 1,
-      "shop_name": "Gadget Hub Official",
-      "shop_description": "Top quality electronics and accessories.",
+      "shop_name": "Lahore Traders Mall",
+      "shop_description": "Premier clothing and electronics vendor.",
       "is_approved": false
     }
   },
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGci...",
+  "access_token": "eyJ0eXAiOiJKV1QiLC...",
   "token_type": "bearer",
-  "expires_in": 3600
+  "expires_in": 86400
 }
 ```
 
@@ -120,136 +148,163 @@ The system supports 3 roles:
 
 #### 2. Login
 - **Method**: `POST`
-- **URL**: `/auth/login`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/auth/login`
+- **Local URL**: `http://localhost:8000/api/auth/login`
 - **Auth**: Public
 
 **Request Body:**
 ```json
 {
-  "email": "alex@example.com",
+  "email": "usman@gmail.com",
   "password": "Password123!"
 }
 ```
 
-**Response (200 OK):**
+**Response (`200 OK`):**
 ```json
 {
   "message": "Login successful.",
   "user": {
     "id": 1,
-    "username": "alex99",
-    "email": "alex@example.com",
+    "username": "usman_khan",
+    "email": "usman@gmail.com",
     "role": "customer",
-    "is_active": true,
     "vendor": null
   },
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGci...",
+  "access_token": "eyJ0eXAiOiJKV1QiLC...",
   "token_type": "bearer",
-  "expires_in": 3600
+  "expires_in": 86400
 }
 ```
 
 ---
 
-#### 3. Current User Profile
+#### 3. Current User (`/auth/me`)
 - **Method**: `GET`
-- **URL**: `/auth/me`
-- **Auth**: `Bearer Token`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/auth/me`
+- **Local URL**: `http://localhost:8000/api/auth/me`
+- **Auth**: Bearer Token required
 
-**Response (200 OK):**
+**Response (`200 OK`):**
 ```json
 {
   "user": {
     "id": 1,
-    "username": "gadgethub",
-    "email": "vendor@gadgethub.com",
-    "role": "vendor",
-    "is_active": true,
-    "vendor": {
-      "id": 1,
-      "shop_name": "Gadget Hub Official",
-      "is_approved": true
-    }
+    "username": "usman_khan",
+    "email": "usman@gmail.com",
+    "role": "customer",
+    "vendor": null
   }
 }
 ```
 
 ---
 
-#### 4. Logout / Refresh Token
-- **Logout**: `POST /auth/logout` (Invalidates token)
-- **Refresh**: `POST /auth/refresh` (Returns fresh token)
+#### 4. Refresh Token
+- **Method**: `POST`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/auth/refresh`
+- **Local URL**: `http://localhost:8000/api/auth/refresh`
+- **Auth**: Bearer Token required
+
+**Response (`200 OK`):**
+```json
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLC...",
+  "token_type": "bearer",
+  "expires_in": 86400
+}
+```
 
 ---
 
-### B. Public Product Catalog (`/products`)
+#### 5. Logout
+- **Method**: `POST`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/auth/logout`
+- **Local URL**: `http://localhost:8000/api/auth/logout`
+- **Auth**: Bearer Token required
 
-#### 1. List Products (Paginated)
+**Response (`200 OK`):**
+```json
+{
+  "message": "Successfully logged out."
+}
+```
+
+---
+
+### B. Public Product Catalog
+
+#### 1. Browse Products (Filter, Search, Paginate)
 - **Method**: `GET`
-- **URL**: `/products`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/products?search=kurta&vendor_id=1&per_page=12&page=1`
+- **Local URL**: `http://localhost:8000/api/products?search=kurta&vendor_id=1&per_page=12&page=1`
 - **Auth**: Public
-- **Query Parameters**:
-  - `page`: Page number (default: `1`)
-  - `per_page`: Items per page (default: `15`)
-  - `search`: Filter by name keyword (e.g. `?search=headset`)
-  - `vendor_id`: Filter by vendor ID (e.g. `?vendor_id=3`)
 
-**Response (200 OK):**
+**Query Parameters:**
+- `search` *(optional)*: Search by product title.
+- `vendor_id` *(optional)*: Filter products by vendor ID.
+- `per_page` *(optional, default 15)*: Number of items per page.
+- `page` *(optional, default 1)*: Page number.
+
+**Response (`200 OK`):**
 ```json
 {
   "data": [
     {
-      "id": 12,
-      "vendor_id": 2,
-      "name": "Wireless Noise-Cancelling Headphones",
-      "slug": "wireless-noise-cancelling-headphones",
-      "description": "Premium sound with 40-hour battery life.",
-      "image": "https://example.com/images/headphones.jpg",
-      "price": 149.99,
-      "stock_quantity": 25,
-      "total_sold": 10,
+      "id": 1,
+      "vendor_id": 1,
+      "name": "Khaadi Men Kurta 2026",
+      "slug": "khaadi-men-kurta-2026",
+      "description": "Premium summer stitched kurta.",
+      "image": "https://example.com/kurta.jpg",
+      "price": "4500.00",
+      "stock_quantity": 48,
+      "total_sold": 2,
       "is_active": true,
-      "flat_discount": null,
-      "percentage_discount": 10,
+      "flat_discount": "0.00",
+      "percentage_discount": 0,
       "vendor": {
-        "id": 2,
-        "shop_name": "SoundWave Studio"
+        "id": 1,
+        "shop_name": "Lahore Traders Mall",
+        "is_approved": true
       }
     }
   ],
-  "links": {
-    "first": "http://localhost:8000/api/products?page=1",
-    "last": "http://localhost:8000/api/products?page=4",
-    "prev": null,
-    "next": "http://localhost:8000/api/products?page=2"
-  },
   "meta": {
     "current_page": 1,
-    "per_page": 15,
-    "total": 52
+    "total": 1,
+    "per_page": 12
   }
 }
 ```
 
 ---
 
-#### 2. Get Single Product by Slug
+#### 2. Get Product Detail by Slug
 - **Method**: `GET`
-- **URL**: `/products/{slug}` (e.g. `/products/wireless-noise-cancelling-headphones`)
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/products/{slug}`
+- **Local URL**: `http://localhost:8000/api/products/{slug}`
 - **Auth**: Public
 
-**Response (200 OK):**
+**Example:** `GET https://usage-putt-sage.ngrok-free.dev/api/products/khaadi-men-kurta-2026`
+
+**Response (`200 OK`):**
 ```json
 {
   "data": {
-    "id": 12,
-    "name": "Wireless Noise-Cancelling Headphones",
-    "slug": "wireless-noise-cancelling-headphones",
-    "price": 149.99,
-    "stock_quantity": 25,
+    "id": 1,
+    "vendor_id": 1,
+    "name": "Khaadi Men Kurta 2026",
+    "slug": "khaadi-men-kurta-2026",
+    "description": "Premium summer stitched kurta.",
+    "price": "4500.00",
+    "stock_quantity": 48,
+    "total_sold": 2,
+    "is_active": true,
     "vendor": {
-      "id": 2,
-      "shop_name": "SoundWave Studio"
+      "id": 1,
+      "shop_name": "Lahore Traders Mall",
+      "is_approved": true
     }
   }
 }
@@ -259,79 +314,52 @@ The system supports 3 roles:
 
 ### C. Customer Checkout & Orders
 
-#### 1. Place Order / Checkout
+#### 1. Place Checkout Order
 - **Method**: `POST`
-- **URL**: `/checkout`
-- **Auth**: `Bearer Token` (`customer` or `admin`)
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/checkout`
+- **Local URL**: `http://localhost:8000/api/checkout`
+- **Auth**: Bearer Token required (`customer` or `admin`)
 
 **Request Body:**
 ```json
 {
   "items": [
     {
-      "product_id": 12,
+      "product_id": 1,
       "quantity": 2
-    },
-    {
-      "product_id": 15,
-      "quantity": 1
     }
   ],
-  "payment_method": "stripe",
-  "shipping_amount": 10.00
+  "payment_method": "jazzcash",
+  "shipping_amount": 250.00
 }
 ```
-*Supported `payment_method`: `"stripe"`, `"cod"` (Cash On Delivery).*
 
-**Success Response (201 Created):**
+> **Supported `payment_method` values:** `"jazzcash"`, `"easypaisa"`, `"cod"`
+
+**Response (`201 Created`):**
 ```json
 {
   "message": "Order placed successfully.",
   "order": {
-    "id": 101,
-    "order_number": "ORD-E7D3F9B2C1",
-    "total_amount": 349.98,
+    "id": 1,
+    "order_number": "ORD-ZRQC8TMXFQ",
+    "user_id": 2,
+    "total_amount": "9250.00",
     "status": "processing",
-    "payment_method": "stripe",
+    "payment_method": "jazzcash",
     "payment_status": "paid",
-    "shipping_amount": 10.00,
-    "items": [
-      {
-        "id": 201,
-        "product_id": 12,
-        "quantity": 2,
-        "price": 149.99,
-        "subtotal": 299.98,
-        "product": {
-          "name": "Wireless Noise-Cancelling Headphones",
-          "slug": "wireless-noise-cancelling-headphones"
-        }
-      }
-    ]
+    "shipping_amount": "250.00",
+    "created_at": "2026-10-21T04:20:00.000000Z"
+  },
+  "payment_result": {
+    "success": true,
+    "transaction_id": "JC-1729484400-9821",
+    "payment_method": "jazzcash",
+    "amount": 9250,
+    "currency": "PKR",
+    "status": "paid",
+    "message": "JazzCash payment processed successfully."
   }
-}
-```
-
-**Error: Insufficient Stock (422 Unprocessable Entity):**
-```json
-{
-  "message": "Insufficient stock for 'Wireless Noise-Cancelling Headphones'. Requested 50, only 25 available.",
-  "code": "INSUFFICIENT_STOCK",
-  "details": {
-    "product_id": 12,
-    "product_name": "Wireless Noise-Cancelling Headphones",
-    "requested_quantity": 50,
-    "available_stock": 25
-  }
-}
-```
-> **Frontend Tip:** When receiving `INSUFFICIENT_STOCK`, show an inline alert next to that specific cart item and update the maximum selectable quantity to `available_stock`.
-
-**Error: Card Declined (402 Payment Required):**
-```json
-{
-  "message": "Payment authorization was declined. Transaction rolled back.",
-  "code": "PAYMENT_FAILED"
 }
 ```
 
@@ -339,152 +367,273 @@ The system supports 3 roles:
 
 #### 2. Customer Order History
 - **Method**: `GET`
-- **URL**: `/orders`
-- **Auth**: `Bearer Token` (`customer`)
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/orders?per_page=10&page=1`
+- **Local URL**: `http://localhost:8000/api/orders?per_page=10&page=1`
+- **Auth**: Bearer Token required (`customer` or `admin`)
 
-Returns paginated list of all orders placed by the current customer, including line items.
+**Response (`200 OK`):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "order_number": "ORD-ZRQC8TMXFQ",
+      "total_amount": "9250.00",
+      "status": "processing",
+      "payment_method": "jazzcash",
+      "payment_status": "paid",
+      "shipping_amount": "250.00",
+      "created_at": "2026-10-21T04:20:00.000000Z",
+      "items": [
+        {
+          "id": 1,
+          "product_id": 1,
+          "quantity": 2,
+          "price": "4500.00",
+          "total": "9000.00",
+          "product": {
+            "id": 1,
+            "name": "Khaadi Men Kurta 2026",
+            "slug": "khaadi-men-kurta-2026",
+            "vendor": {
+              "id": 1,
+              "shop_name": "Lahore Traders Mall"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+#### 3. Single Order Details
+- **Method**: `GET`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/orders/{order_id}`
+- **Local URL**: `http://localhost:8000/api/orders/{order_id}`
+- **Auth**: Bearer Token required
 
 ---
 
 ### D. Vendor Portal (`/vendor`)
 
-#### 1. Get Vendor Profile & Earnings Summary
-- **Method**: `GET`
-- **URL**: `/vendor/profile`
-- **Auth**: `Bearer Token` (`vendor`)
+All vendor routes require `role: vendor`.
 
-**Response (200 OK):**
+#### 1. Get Vendor Profile & Earnings
+- **Method**: `GET`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/profile`
+- **Local URL**: `http://localhost:8000/api/vendor/profile`
+- **Auth**: Bearer Token (`vendor`)
+
+**Response (`200 OK`):**
 ```json
 {
   "vendor": {
-    "id": 2,
-    "shop_name": "SoundWave Studio",
-    "shop_description": "Premium audio gear.",
+    "id": 1,
+    "shop_name": "Lahore Traders Mall",
+    "shop_description": "Premier clothing vendor.",
     "is_approved": true,
-    "products_count": 14
+    "products_count": 5
   },
-  "total_earnings": 1350.00
+  "total_earnings": 8100.00
 }
 ```
 
 ---
 
-#### 2. Update Vendor Shop Details
+#### 2. Update Vendor Shop Profile
 - **Method**: `PUT`
-- **URL**: `/vendor/profile`
-- **Auth**: `Bearer Token` (`vendor`)
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/profile`
+- **Local URL**: `http://localhost:8000/api/vendor/profile`
+- **Auth**: Bearer Token (`vendor`)
 
 **Request Body:**
 ```json
 {
-  "shop_name": "SoundWave Studio Pro",
-  "shop_description": "Studio-grade headphones and audio accessories."
+  "shop_name": "Lahore Traders Flagship",
+  "shop_description": "Official flagship outlet in Lahore."
 }
 ```
 
 ---
 
-#### 3. Create Product
+#### 3. Vendor Product Catalog
+- **Method**: `GET`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/products`
+- **Local URL**: `http://localhost:8000/api/vendor/products`
+- **Auth**: Bearer Token (`vendor`)
+
+---
+
+#### 4. Add Product (Requires Admin Approval)
 - **Method**: `POST`
-- **URL**: `/vendor/products`
-- **Auth**: `Bearer Token` (`vendor` + Approved)
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/products`
+- **Local URL**: `http://localhost:8000/api/vendor/products`
+- **Auth**: Bearer Token (`vendor` + `vendor.approved`)
+
+> **Automatic Slug:** No need to ask the user for a slug! The backend generates it automatically.
 
 **Request Body:**
 ```json
 {
-  "name": "RGB Mechanical Keyboard",
-  "description": "Tactile blue switches with programmable RGB.",
-  "image": "https://example.com/img/keyboard.jpg",
-  "price": 89.99,
-  "stock_quantity": 50,
+  "name": "Men Embroidered Kurta 2026",
+  "description": "100% fine cotton fabric.",
+  "price": 5200.00,
+  "stock_quantity": 25,
   "is_active": true,
-  "flat_discount": null,
-  "percentage_discount": null
+  "percentage_discount": 10
 }
 ```
-> **Notice:** The frontend **does not** send a `slug`. The backend auto-generates a clean URL slug (e.g. `"rgb-mechanical-keyboard"`) and handles collision duplicates automatically.
 
-**Error if Vendor is Not Approved (403 Forbidden):**
+**Response (`201 Created`):**
 ```json
 {
-  "message": "Your vendor account is pending approval. You cannot manage products until approved.",
-  "code": "VENDOR_NOT_APPROVED"
+  "message": "Product created successfully.",
+  "product": {
+    "id": 2,
+    "name": "Men Embroidered Kurta 2026",
+    "slug": "men-embroidered-kurta-2026",
+    "price": "5200.00",
+    "stock_quantity": 25,
+    "is_active": true
+  }
 }
 ```
 
 ---
 
-#### 4. Update / Delete Product
-- **Update**: `PUT /vendor/products/{id}`
-- **Delete**: `DELETE /vendor/products/{id}`
-- **Auth**: `Bearer Token` (`vendor` + Owner of product)
+#### 5. Update Product
+- **Method**: `PUT`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/products/{product_id}`
+- **Local URL**: `http://localhost:8000/api/vendor/products/{product_id}`
+- **Auth**: Bearer Token (`vendor` + `vendor.approved`)
 
 ---
 
-#### 5. Vendor Sales & Earnings Ledger
-- **Orders list**: `GET /vendor/orders`
-  Returns all customer orders that contain products from this vendor.
-- **Earnings ledger**: `GET /vendor/earnings`
-  Shows each order's commission breakdown:
-  ```json
-  {
-    "order_amount": 200.00,
-    "commission_fee": 20.00,
-    "vendor_earning": 180.00,
-    "created_at": "2026-10-20T06:12:00.000000Z"
-  }
-  ```
+#### 6. Delete Product
+- **Method**: `DELETE`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/products/{product_id}`
+- **Local URL**: `http://localhost:8000/api/vendor/products/{product_id}`
+- **Auth**: Bearer Token (`vendor` + `vendor.approved`)
+
+---
+
+#### 7. Vendor Sold Orders
+- **Method**: `GET`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/orders`
+- **Local URL**: `http://localhost:8000/api/vendor/orders`
+- **Auth**: Bearer Token (`vendor`)
+
+---
+
+#### 8. Vendor Earnings Breakdown
+- **Method**: `GET`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/vendor/earnings`
+- **Local URL**: `http://localhost:8000/api/vendor/earnings`
+- **Auth**: Bearer Token (`vendor`)
 
 ---
 
 ### E. Admin Portal (`/admin`)
 
-*(Requires `auth:api` and user with `role: "admin"`)*
+All admin routes require `role: admin`.
 
-#### 1. List Vendors (Filter Pending Approvals)
+#### 1. List Vendors (With Approval Filter)
 - **Method**: `GET`
-- **URL**: `/admin/vendors?is_approved=false`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/admin/vendors?is_approved=false`
+- **Local URL**: `http://localhost:8000/api/admin/vendors?is_approved=false`
+- **Auth**: Bearer Token (`admin`)
 
-#### 2. Approve Vendor
+---
+
+#### 2. Approve Vendor Shop
 - **Method**: `PATCH`
-- **URL**: `/admin/vendors/{id}/approve`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/admin/vendors/{vendor_id}/approve`
+- **Local URL**: `http://localhost:8000/api/admin/vendors/{vendor_id}/approve`
+- **Auth**: Bearer Token (`admin`)
 
-**Response (200 OK):**
+**Response (`200 OK`):**
 ```json
 {
-  "message": "Vendor 'SoundWave Studio' has been approved successfully.",
+  "message": "Vendor 'Lahore Traders Mall' has been approved successfully.",
   "vendor": {
-    "id": 2,
-    "shop_name": "SoundWave Studio",
+    "id": 1,
+    "shop_name": "Lahore Traders Mall",
     "is_approved": true
   }
 }
 ```
 
-#### 3. Revoke / Reject Vendor
-- **Method**: `PATCH`
-- **URL**: `/admin/vendors/{id}/reject`
+---
 
-#### 4. Platform Analytics & Earnings
-- **Ledger**: `GET /admin/earnings` (all vendor earnings & 10% platform cuts)
-- **Stats**: `GET /admin/stats`
-  ```json
-  {
-    "total_commission_collected": 1420.50,
-    "total_vendor_payouts": 12784.50,
-    "total_orders": 85,
-    "total_products": 340,
-    "total_vendors": 24,
-    "pending_vendor_approvals": 3
-  }
-  ```
+#### 3. Reject / Revoke Vendor Approval
+- **Method**: `PATCH`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/admin/vendors/{vendor_id}/reject`
+- **Local URL**: `http://localhost:8000/api/admin/vendors/{vendor_id}/reject`
+- **Auth**: Bearer Token (`admin`)
 
 ---
 
-## 5. Frontend Implementation Checklist
+#### 4. Platform Earnings Ledger
+- **Method**: `GET`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/admin/earnings`
+- **Local URL**: `http://localhost:8000/api/admin/earnings`
+- **Auth**: Bearer Token (`admin`)
 
-- [ ] Store `access_token` securely in `localStorage` or `HttpOnly` cookie.
-- [ ] Set up an Axios/Fetch interceptor to attach `Authorization: Bearer <token>` to requests.
-- [ ] In the interceptor, listen for `401 Unauthorized` → clear storage and redirect to login.
-- [ ] If logged in as `vendor` and `user.vendor.is_approved === false`, show an amber moderation banner on the vendor dashboard.
-- [ ] On `/checkout`, catch `422 INSUFFICIENT_STOCK` and highlight the out-of-stock items.
+---
+
+#### 5. Platform Dashboard Stats
+- **Method**: `GET`
+- **Live URL**: `https://usage-putt-sage.ngrok-free.dev/api/admin/stats`
+- **Local URL**: `http://localhost:8000/api/admin/stats`
+- **Auth**: Bearer Token (`admin`)
+
+**Response (`200 OK`):**
+```json
+{
+  "total_commission_collected": 900.00,
+  "total_vendor_payouts": 8100.00,
+  "total_orders": 1,
+  "total_products": 2,
+  "total_vendors": 1,
+  "pending_vendor_approvals": 0
+}
+```
+
+---
+
+## 5. Lovable / React Integration Tips
+
+1. **Persist the Bearer Token:**
+   Save `response.access_token` into `localStorage.setItem('auth_token', token)`.
+2. **Setup an Axios / Fetch Interceptor:**
+   ```typescript
+   import axios from 'axios';
+
+   const api = axios.create({
+     baseURL: import.meta.env.VITE_API_BASE_URL,
+     headers: {
+       'Accept': 'application/json',
+       'Content-Type': 'application/json',
+       'ngrok-skip-browser-warning': 'true',
+     },
+   });
+
+   api.interceptors.request.use((config) => {
+     const token = localStorage.getItem('auth_token');
+     if (token) {
+       config.headers.Authorization = `Bearer ${token}`;
+     }
+     return config;
+   });
+
+   export default api;
+   ```
+3. **Displaying Prices in PKR:**
+   ```typescript
+   export const formatPKR = (amount: number | string) => {
+     return `Rs. ${Number(amount).toLocaleString('en-PK')}`;
+   };
+   ```
